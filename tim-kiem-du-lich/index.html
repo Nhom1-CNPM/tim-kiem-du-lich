@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Tìm kiếm địa điểm du lịch</title>
+</head>
+<body>
+    <h1>Tìm kiếm địa điểm du lịch</h1>
+    <input type="text" id="searchInput" placeholder="Nhập tên thành phố..." />
+    <button onclick="searchDestination()">Tìm kiếm</button>
+
+    <div id="results"></div>
+
+    <script>
+        const apiKey = '5ae2e3f221c38a28845f05b64808c34b9138f4cce692673e6a25d67c';
+
+        async function searchDestination() {
+            const city = document.getElementById('searchInput').value.trim();
+            if (!city) {
+                alert("Vui lòng nhập tên thành phố.");
+                return;
+            }
+
+            document.getElementById('results').innerHTML = '<p>Đang tìm kiếm...</p>';
+
+            try {
+                const geoUrl = `https://api.opentripmap.com/0.1/en/places/geoname?name=${encodeURIComponent(city)}&apikey=${apiKey}`;
+                const geoRes = await fetch(geoUrl);
+                const geoData = await geoRes.json();
+
+                if (!geoData.lat || !geoData.lon) {
+                    document.getElementById('results').innerHTML = '<p>Không tìm thấy thành phố.</p>';
+                    return;
+                }
+
+                const { lat, lon } = geoData;
+
+                const radius = 10000;
+                const placesUrl = `https://api.opentripmap.com/0.1/en/places/radius?radius=${radius}&lon=${lon}&lat=${lat}&rate=2&format=json&limit=10&apikey=${apiKey}`;
+                const placesRes = await fetch(placesUrl);
+                const places = await placesRes.json();
+
+                if (!places || places.length === 0) {
+                    document.getElementById('results').innerHTML = '<p>Không tìm thấy địa điểm du lịch nào.</p>';
+                    return;
+                }
+
+                let output = '<h3>Địa điểm du lịch:</h3><ul>';
+
+                for (const place of places) {
+                    const englishName = place.name || 'Không rõ tên';
+
+                    const detailUrl = `https://api.opentripmap.com/0.1/vi/places/xid/${place.xid}?apikey=${apiKey}`;
+                    let vietnameseName = '';
+                    let description = '';
+
+                    try {
+                        const detailRes = await fetch(detailUrl);
+                        const detailData = await detailRes.json();
+
+                        vietnameseName = detailData.name || '';
+                        // description = detailData.wikipedia_extracts?.text || 'Không có mô tả tiếng Việt.';
+                    } catch (error) {
+                        vietnameseName = '';
+                        // description = 'Không có mô tả tiếng Việt.';
+                    }
+
+                    const finalName = vietnameseName || englishName;
+
+                    output += `<li><strong>${finalName}</strong><br>${description}</li><br>`;
+                }
+
+                output += '</ul>';
+                document.getElementById('results').innerHTML = output;
+
+            } catch (error) {
+                console.error('Lỗi:', error);
+                document.getElementById('results').innerHTML = '<p>Đã có lỗi xảy ra. Vui lòng thử lại sau.</p>';
+            }
+        }
+    </script>
+</body>
+</html>
